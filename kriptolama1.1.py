@@ -1,96 +1,87 @@
 import pyAesCrypt
 import os
+import customtkinter as ctk
+from tkinter import filedialog, messagebox
 
 
-def sifrele(dosya):
+# ŞİFRELEME FONKSİYONLARI
+
+def sifrele(dosya, sifre):
     bufferSize = 512 * 1024
     sifreli_dosya = str(dosya) + ".aes"
 
-    # Şifre belirlerken boş geçilmesini engellemek için döngü
-    while True:
-        password = input("Sifre belirleyin: ")
-        if password == "":
-            print("[!] HATA: Sifre bos birakilamaz. Lutfen tekrar deneyin.\n")
-        else:
-            break
-
     try:
-        # Şifreleme işlemini dene
-        pyAesCrypt.encryptFile(str(dosya), sifreli_dosya, password, bufferSize)
-        print(f"\n[+] BASARILI: Dosyaniz kriptolandi -> {sifreli_dosya}")
-
-        # İşlem bitince orijinal dosyayı sil
+        pyAesCrypt.encryptFile(str(dosya), sifreli_dosya, sifre, bufferSize)
         os.remove(dosya)
-        print(f"[-] BILGI: Guvenlik amaciyla orijinal dosya ({dosya}) silindi.")
-
     except FileNotFoundError:
-        print(f"\n[!] HATA: '{dosya}' adinda bir dosya bulunamadi.")
+        messagebox.showerror("Hata", f"'{dosya}' adında bir dosya bulunamadı.")
     except Exception as e:
-        print(f"\n[!] BEKLENMEYEN HATA: Sifreleme sirasinda bir sorun olustu: {e}")
+        messagebox.showerror("Hata", f"Şifreleme sırasında bir hata oluştu: {e}")
 
-
-def sifrecoz(dosya):
+def sifrecoz(dosya, sifre):
     bufferSize = 512 * 1024
-
     if str(dosya).endswith(".aes"):
         cozulmus_dosya = str(dosya)[:-4]
     else:
         cozulmus_dosya = "cozulmus_" + str(dosya)
 
-    # Şifreyi doğru girene kadar tekrar soracak döngü
-    while True:
-        password = input("Cozmek icin sifre girin (Iptal icin 'q' basabilirsiniz): ")
-
-        if password.lower() == 'q':
-            print("Islem iptal edildi.")
-            break
-
-        try:
-            # Şifre çözme işlemini dene
-            pyAesCrypt.decryptFile(str(dosya), cozulmus_dosya, password, bufferSize)
-            print(f"\n[+] BASARILI: Kilit acildi -> {cozulmus_dosya}")
-
-            # İşlem bitince kilitli (.aes) dosyayı sil
-            os.remove(dosya)
-            print(f"[-] BILGI: Temizlik amaciyla kilitli dosya ({dosya}) silindi.")
-            break  # Şifre doğruysa ve işlem bittiyse döngüyü kır
-
-        except ValueError:
-            # Şifre yanlışsa veya dosya bozuksa burası çalışır
-            print("\n[!] HATA: Yanlis sifre girdiniz veya dosya bozuk! Lutfen tekrar deneyin.\n")
-        except FileNotFoundError:
-            print(f"\n[!] HATA: '{dosya}' adinda bir dosya bulunamadi.")
-            break  # Dosya yoksa döngüyü kır
-        except Exception as e:
-            print(f"\n[!] BEKLENMEYEN HATA: {e}")
-            break
+    try:
+        pyAesCrypt.decryptFile(str(dosya), cozulmus_dosya, sifre, bufferSize)
+        os.remove(dosya)
+    except FileNotFoundError:
+        messagebox.showerror("Hata", f"'{dosya}' adında bir dosya bulunamadı.")
+    except Exception as e:
+        messagebox.showerror("Hata", f"Şifre çözme sırasında bir hata oluştu: {e}")
 
 
-# --- ANA PROGRAM ---
-print("\n-- KRIPTO PROGRAMINA HOS GELDIN --")
+# GUI ARA FONKSİYONLARI
 
-# Programın sürekli açık kalmasını sağlayan ana döngü
-while True:
-    print("\n" + "=" * 45)
-    hedef_dir = input("Islem yapmak istediginiz dosyanin adini girin (Cikis icin 'q'): ")
+def encrypt_ui():
+    dosya = selected_file.get()
+    sifre = password_entry.get()
+    if dosya == "" or sifre == "":
+        messagebox.showerror("Hata", "Dosya veya şifre boş olamaz.")
+        return
+    sifrele(dosya, sifre)
+    messagebox.showinfo("Başarılı", f"Dosya şifrelendi: {dosya}.aes")
 
-    if hedef_dir.lower() == 'q':
-        print("\nProgramdan cikiliyor. Gorusmek uzere!")
-        break
+def decrypt_ui():
+    dosya = selected_file.get()
+    sifre = password_entry.get()
+    if dosya == "" or sifre == "":
+        messagebox.showerror("Hata", "Dosya veya şifre boş olamaz.")
+        return
+    sifrecoz(dosya, sifre)
+    messagebox.showinfo("Başarılı", f"Dosya çözüldü: {dosya}")
 
-    print("\nHangi islemi yapmak istiyorsun?")
-    print("1 - Sifrele")
-    print("2 - Sifre Coz")
 
-    # Kullanıcı doğru işlem seçeneğini girene kadar dönecek döngü
-    while True:
-        secim = input("Secim yapiniz (1 veya 2): ")
+# GUI PENCERE OLUŞTURMA
 
-        if secim == "1":
-            sifrele(hedef_dir)
-            break
-        elif secim == "2":
-            sifrecoz(hedef_dir)
-            break
-        else:
-            print("[!] HATA: Hatali secim yaptiniz. Lutfen sadece 1 veya 2 girin.\n")
+ctk.set_appearance_mode("Dark")  # Dark mode
+ctk.set_default_color_theme("blue")  # Tema rengi
+
+app = ctk.CTk()
+app.geometry("500x400")
+app.title("AES Dosya Şifreleme")
+
+selected_file = ctk.StringVar()
+
+# Dosya seçme alanı
+file_entry = ctk.CTkEntry(app, textvariable=selected_file, width=300)
+file_entry.pack(pady=20)
+
+file_button = ctk.CTkButton(app, text="Dosya Seç", command=lambda: selected_file.set(filedialog.askopenfilename()))
+file_button.pack(pady=5)
+
+# Şifre girişi
+password_entry = ctk.CTkEntry(app, placeholder_text="Şifre girin", show="*")
+password_entry.pack(pady=10)
+
+# Şifrele / Çöz butonları
+encrypt_button = ctk.CTkButton(app, text="Şifrele", command=encrypt_ui)
+encrypt_button.pack(pady=5)
+
+decrypt_button = ctk.CTkButton(app, text="Şifre Çöz", command=decrypt_ui)
+decrypt_button.pack(pady=5)
+
+app.mainloop()
